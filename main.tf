@@ -1,4 +1,4 @@
-variable "code" {
+variable "path" {
   description = "Relative path to code file.  (e.g. 'hello.js')"
 }
 variable "extra_files" {
@@ -14,7 +14,7 @@ variable "output_filename" {
 data "external" "lambda_packager" {
   program = [ "${path.module}/packager.py" ]
   query = {
-    code = "${var.code}"
+    path = "${var.path}"
     output_filename = "${var.output_filename}"
     extra_files = "${join(",", var.extra_files)}"
   }
