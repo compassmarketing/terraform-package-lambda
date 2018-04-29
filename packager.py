@@ -13,6 +13,7 @@ import base64
 import tempfile
 import zipfile
 import re
+from setuptools import find_packages
 
 class Packager:
     def __init__(self, path, output_filename='lambda.zip', extra_files=None):
@@ -37,10 +38,13 @@ class Packager:
                 build_path
             ], stdout=fnull)
 
-        files = [f for f in os.listdir(self.path) if re.match(r'^.*\.py$', f)]
-        for f in files: #pylint:disable=invalid-name
-            src = os.path.join(self.path, f)
-            dst = os.path.join(build_path, f)
+
+        packages = find_packages(where=self.path,
+                                 exclude=['tests', 'test']) + self._find_root_modules(self.path)
+
+        for module in packages:
+            src = os.path.join(self.path, module)
+            dst = os.path.join(build_path, module)
             if os.path.isdir(src):
                 shutil.copytree(src, dst, ignore=shutil.ignore_patterns('*.pyc'))
             elif os.path.isfile(src):
@@ -67,6 +71,9 @@ class Packager:
             "output_filename": self.output_filename,
             "output_base64sha256": self.output_base64sha256()
         }
+
+    def _find_root_modules(self, path):
+        return [f for f in os.listdir(path) if re.match(r'^.*\.py$', f)]
 
 def main():
     args = json.load(sys.stdin)
