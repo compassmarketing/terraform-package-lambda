@@ -39,7 +39,7 @@ class Packager:
         if self.deps_filename:
             shutil.copy(self.deps_filename, self.output_filename)
 
-        packages = [pkg for pkg in find_packages(where=self.path, exclude=['tests', 'test']) if '.' not in pkg]
+        packages = [pkg for pkg in find_packages(where=self.path, exclude=['tests', 'test']) if "." not in pkg]
         packages = packages + _find_root_modules(self.path)
 
         with zipfile.ZipFile(self.output_filename, 'a') as myzip:
