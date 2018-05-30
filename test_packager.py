@@ -38,7 +38,7 @@ class TestPackager(unittest.TestCase):
         )
         self.assertEqual(result['zip_contents']['foo.py'], b'# Hello, Python!\n')
         self.assertEqual(result['zip_contents']['deps.py'], b'#dependency code here\n')
-        self.assertEqual(result['output']['output_filename'], './lambda_package.zip')
+        self.assertEqual(result['output']['output_filename'], os.path.abspath('lambda_package.zip'))
 
     def test_pkg_py_deps_sha(self):
 
@@ -104,5 +104,6 @@ class TestPackager(unittest.TestCase):
         result2 = do_packaging(
             path='test/python-complex'
         )
+        print(result1)
         self.assertEqual(result1['output']['output_base64sha256'],
                          result2['output']['output_base64sha256'])

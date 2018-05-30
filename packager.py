@@ -67,7 +67,7 @@ class Packager:
         '''provide data for terraform output'''
         return {
             'path': self.path,
-            'output_filename': self.output_filename,
+            'output_filename': os.path.abspath(self.output_filename),
             'output_base64sha256': self.output_base64sha256()
         }
 
