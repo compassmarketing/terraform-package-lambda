@@ -39,8 +39,8 @@ class Packager:
         if self.deps_filename:
             shutil.copy(self.deps_filename, self.output_filename)
 
-        packages = find_packages(where=self.path,
-                                 exclude=['tests', 'test']) + _find_root_modules(self.path)
+        packages = [pkg for pkg in find_packages(where=self.path, exclude=['tests', 'test']) if '.' not in pkg]
+        packages = packages + _find_root_modules(self.path)
 
         with zipfile.ZipFile(self.output_filename, 'a') as myzip:
             for module in packages:
@@ -50,6 +50,7 @@ class Packager:
                         for file_name in files:
                             if not file_name.endswith('.pyc'):
                                 path = os.path.join(base, file_name)
+                                print(path)
                                 myzip.write(path, path.replace(self.path, ''))
                 else:
                     myzip.write(module_relpath, module)

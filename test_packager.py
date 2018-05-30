@@ -47,6 +47,7 @@ class TestPackager(unittest.TestCase):
             deps_filename='test/deps.zip'
         )
         time.sleep(2) # Allow for current time to 'infect' result
+        os.remove('lambda_package.zip')
         result2 = do_packaging(
             path='test/python-simple/',
             deps_filename='test/deps.zip'
@@ -67,6 +68,7 @@ class TestPackager(unittest.TestCase):
             deps_filename='test/deps.zip'
         )
         time.sleep(2) # Allow for current time to 'infect' result
+        os.remove('lambda_package.zip')
         result2 = do_packaging(
             path='test/python-simple/',
             deps_filename='test/deps.zip'
@@ -95,13 +97,12 @@ class TestPackager(unittest.TestCase):
     def test_pkg_py_complex_sha(self):
 
         result1 = do_packaging(
-            path='test/python-complex',
-            deps_filename='test/deps.zip'
+            path='test/python-complex'
         )
         time.sleep(2) # Allow for current time to 'infect' result
+        os.remove('lambda_package.zip')
         result2 = do_packaging(
-            path='test/python-complex/',
-            deps_filename='test/deps.zip'
+            path='test/python-complex'
         )
         self.assertEqual(result1['output']['output_base64sha256'],
                          result2['output']['output_base64sha256'])
