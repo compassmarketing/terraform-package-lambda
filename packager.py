@@ -50,7 +50,6 @@ class Packager:
                         for file_name in files:
                             if not file_name.endswith('.pyc'):
                                 path = os.path.join(base, file_name)
-                                print(path)
                                 myzip.write(path, path.replace(self.path, ''))
                 else:
                     myzip.write(module_relpath, module)
