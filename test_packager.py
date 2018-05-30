@@ -38,6 +38,7 @@ class TestPackager(unittest.TestCase):
         )
         self.assertEqual(result['zip_contents']['foo.py'], b'# Hello, Python!\n')
         self.assertEqual(result['zip_contents']['deps.py'], b'#dependency code here\n')
+        self.assertEqual(result['output']['output_filename'], './lambda_package.zip')
 
     def test_pkg_py_deps_sha(self):
 

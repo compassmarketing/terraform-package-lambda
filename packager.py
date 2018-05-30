@@ -25,8 +25,8 @@ class Packager:
     # default deps_filename to '' because terraform does not support null values for variables
     def __init__(self, path, deps_filename='', output_filename='lambda_package.zip'):
         self.path = path
-        self.output_filename = os.path.join(os.getcwd(), output_filename)
-        self.deps_filename = os.path.join(os.getcwd(), deps_filename) if deps_filename != '' else None
+        self.output_filename = os.path.join(os.curdir, output_filename)
+        self.deps_filename = os.path.join(os.curdir, deps_filename) if deps_filename != '' else None
 
         #check that lambda_package.zip already exists
         if self.deps_filename and not os.path.isfile(self.deps_filename):
