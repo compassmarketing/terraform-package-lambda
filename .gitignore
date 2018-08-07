@@ -1,3 +1,7 @@
 *.pyc
 venv/
 .pytest_cache/
+
+.lambda_build/
+terraform.tfstate*
+.terraform/
