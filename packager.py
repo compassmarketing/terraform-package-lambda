@@ -9,7 +9,8 @@ import sys
 import os
 import json
 import hashlib
-import glob
+import tempfile
+import shutil
 import subprocess
 import zipfile
 import re
@@ -36,35 +37,11 @@ class Packager:
 
     def package(self):
         '''find and append packages to lambda zip file'''
-        build_path = os.path.abspath(self.build_dir)
-        if not os.path.exists(build_path):
-            os.makedirs(build_path)
-        else:
-            for f in glob.glob(os.path.join(build_path, '*.zip')):
-                os.remove(f)
-
+        build_path = tempfile.mkdtemp(suffix='lambda-packager')
         output_filename = os.path.join(build_path, 'lambdas.zip')
-
-        packages = [pkg for pkg in find_packages(where=self.path, exclude=['tests', 'test']) if "." not in pkg]
-        packages = packages + _find_root_modules(self.path)
-
-        with zipfile.ZipFile(output_filename, 'w') as myzip:
-            for module in packages:
-                module_relpath = os.path.join(self.path, module)
-                if os.path.isdir(module_relpath):
-                    for base, _, files in os.walk(module_relpath, followlinks=True):
-                        for file_name in files:
-                            if file_name.endswith('.py'):
-                                path = os.path.join(base, file_name)
-                                myzip.write(path, path.replace(self.path, ''))
-                else:
-                    myzip.write(module_relpath, module)
-
-        output_hash = _sha256File(output_filename)
 
         # install deps if specified
         if os.path.isfile(self.requirements):
-            deps_path = os.path.join(build_path, 'deps')
             fnull = open(os.devnull, 'w')
             subprocess.check_call([
                 'pip',
@@ -72,23 +49,33 @@ class Packager:
                 '-r',
                 self.requirements,
                 '-t',
-                deps_path
+                build_path
             ], stdout=fnull)
 
-            # zip deps files together for distribution
-            with zipfile.ZipFile(output_filename, 'a') as myzip:
-                for base, _, files in os.walk(deps_path, followlinks=True):
-                    for file in files:
+        packages = [pkg for pkg in find_packages(where=self.path, exclude=['tests', 'test']) if "." not in pkg]
+        packages = packages + _find_root_modules(self.path)
+
+        for module in packages:
+            src = os.path.join(self.path, module)
+            dst = os.path.join(build_path, module)
+            if os.path.isdir(src):
+                shutil.copytree(src, dst)
+            elif os.path.isfile(src):
+                shutil.copy(src, dst)
+
+
+        # zip together for distribution
+        with zipfile.ZipFile(output_filename, 'w') as myzip:
+            for base, _, files in os.walk(build_path, followlinks=True):
+                for file in files:
+                    if not file.endswith('.pyc') and file != 'lambdas.zip':
                         path = os.path.join(base, file)
-                        myzip.write(path, path.replace(deps_path + '/', ''))
+                        with open(path, 'rb') as f:
+                            zipinfo = zipfile.ZipInfo(path.replace(build_path + '/', ''))
+                            myzip.writestr(zipinfo, f.read())
 
-            dep_hash =  _sha256File(self.requirements)
-            output_hash = hashlib.sha256((output_hash + dep_hash).encode('utf-8')).hexdigest()
-
-        hashed_filename = output_hash + '.zip'
-        os.rename(output_filename, os.path.join(build_path, hashed_filename))
         return {
-            'output_filename': hashed_filename
+            'output_filename': os.path.abspath(output_filename)
         }
 
 def main():
