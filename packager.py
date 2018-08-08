@@ -65,7 +65,7 @@ class Packager:
 
 
         # zip together for distribution
-        with zipfile.ZipFile(output_filename, 'w') as myzip:
+        with zipfile.ZipFile(output_filename, 'w', compression=zipfile.ZIP_DEFLATED) as myzip:
             for base, _, files in os.walk(build_path, followlinks=True):
                 for file in files:
                     if not file.endswith('.pyc') and file != 'lambdas.zip':
