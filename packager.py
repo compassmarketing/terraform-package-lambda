@@ -30,13 +30,17 @@ def _md5File(path):
 class Packager:
     ''' main class '''
 
-    def __init__(self, path, requirements=None):
+    def __init__(self, path, requirements=None, build_dir=None):
         self.path = path
         self.requirements = requirements
+        self.build_dir = build_dir
 
     def package(self):
         '''find and append packages to lambda zip file'''
-        build_path = tempfile.mkdtemp(suffix='lambda-packager')
+        build_path = os.path.abspath(self.build_dir) if self.build_dir else tempfile.mkdtemp(suffix='lambda-packager')
+        if not os.path.exists(build_path):
+            os.makedirs(build_path)
+
         output_filename = os.path.join(build_path, 'lambdas.zip')
 
         packages = [pkg for pkg in find_packages(where=self.path, exclude=['tests', 'test']) if "." not in pkg]
@@ -58,7 +62,7 @@ class Packager:
 
         # install deps if specified
         if os.path.isfile(self.requirements):
-            deps_path = tempfile.mkdtemp(suffix='lambda-packager-deps')
+            deps_path = os.path.join(build_path, 'deps')
             fnull = open(os.devnull, 'w')
             subprocess.check_call([
                 'pip',
