@@ -8,7 +8,6 @@
 import sys
 import os
 import json
-import shutil
 import tempfile
 import hashlib
 import base64
@@ -20,13 +19,13 @@ from setuptools import find_packages
 def _find_root_modules(path):
     return [f for f in os.listdir(path) if re.match(r'^.*\.py$', f)]
 
-def _base64sha256(path):
+def _md5File(path):
     '''return package hash'''
-    sha256 = hashlib.sha256()
+    md5 = hashlib.md5()
     with open(path, 'rb') as output_filename:
         for block in iter(lambda: output_filename.read(65536), b''):
-            sha256.update(block)
-    return base64.b64encode(sha256.digest()).decode('utf-8')
+            md5.update(block)
+    return md5.hexdigest()
 
 class Packager:
     ''' main class '''
@@ -55,7 +54,7 @@ class Packager:
                 else:
                     myzip.write(module_relpath, module)
 
-        output_hash = _base64sha256(output_filename)
+        output_hash = _md5File(output_filename)
 
         # install deps if specified
         if os.path.isfile(self.requirements):
@@ -77,11 +76,12 @@ class Packager:
                         path = os.path.join(base, file)
                         myzip.write(path, path.replace(deps_path + '/', ''))
 
-            output_hash += _base64sha256(self.requirements)
+            output_hash += _md5File(self.requirements)
 
+        output_hash = hashlib.sha256(output_hash.encode('utf-8')).digest()
         return {
             'output_filename': os.path.abspath(output_filename),
-            'output_base64sha256': output_hash
+            'output_base64sha256': base64.b64encode(output_hash).decode('utf-8')
         }
 
 def main():
