@@ -20,13 +20,22 @@ from setuptools import find_packages
 def _find_root_modules(path):
     return [f for f in os.listdir(path) if re.match(r'^.*\.py$', f)]
 
-def _sha256File(path):
+def _add_sha_256(sha256, path):
     '''return package hash'''
-    sha256 = hashlib.sha256()
     with open(path, 'rb') as output_filename:
         for block in iter(lambda: output_filename.read(65536), b''):
             sha256.update(block)
-    return base64.b64encode(sha256.digest()).decode('utf-8')
+    return sha256
+
+def _zip_directory(filename, src_path, mode='w'):
+    with zipfile.ZipFile(filename, mode) as myzip:
+        for base, _, files in os.walk(src_path, followlinks=True):
+            for file in files:
+                if not file.endswith('.pyc'):
+                    path = os.path.join(base, file)
+                    with open(path, 'rb') as f:
+                        zipinfo = zipfile.ZipInfo(path.replace(src_path + '/', ''))
+                        myzip.writestr(zipinfo, f.read(), compress_type=zipfile.ZIP_DEFLATED)
 
 class Packager:
     ''' main class '''
@@ -40,18 +49,6 @@ class Packager:
         '''find and append packages to lambda zip file'''
         build_path = tempfile.mkdtemp(suffix='lambda-packager')
 
-        # install deps if specified
-        if os.path.isfile(self.requirements):
-            fnull = open(os.devnull, 'w')
-            subprocess.check_call([
-                'pip',
-                'install',
-                '-r',
-                self.requirements,
-                '-t',
-                build_path
-            ], stdout=fnull)
-
         packages = [pkg for pkg in find_packages(where=self.path, exclude=['tests', 'test']) if "." not in pkg]
         packages = packages + _find_root_modules(self.path)
 
@@ -63,20 +60,33 @@ class Packager:
             elif os.path.isfile(src):
                 shutil.copy(src, dst)
 
-
         # zip together for distribution
-        with zipfile.ZipFile(self.filename, 'w') as myzip:
-            for base, _, files in os.walk(build_path, followlinks=True):
-                for file in files:
-                    if not file.endswith('.pyc') and file != 'lambdas.zip':
-                        path = os.path.join(base, file)
-                        with open(path, 'rb') as f:
-                            zipinfo = zipfile.ZipInfo(path.replace(build_path + '/', ''))
-                            myzip.writestr(zipinfo, f.read(), compress_type=zipfile.ZIP_DEFLATED)
+        _zip_directory(self.filename, build_path)
+
+        # Create sha
+        sha256 = hashlib.sha256()
+        _add_sha_256(sha256, self.filename)
+
+        # install deps if specified
+        if os.path.isfile(self.requirements):
+            deps_path = tempfile.mkdtemp(suffix='lambda-packager-deps')
+            fnull = open(os.devnull, 'w')
+            subprocess.check_call([
+                'pip',
+                'install',
+                '-r',
+                self.requirements,
+                '-t',
+                deps_path
+            ], stdout=fnull)
+
+            _zip_directory(self.filename, deps_path, 'a')
+            _add_sha_256(sha256, self.requirements)
+
 
         return {
             'output_filename': self.filename,
-            'output_base64sha256': _sha256File(os.path.abspath(self.filename))
+            'output_base64sha256': base64.b64encode(sha256.digest()).decode('utf-8')
         }
 
 def main():
