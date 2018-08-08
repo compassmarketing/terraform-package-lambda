@@ -82,10 +82,10 @@ class Packager:
 
             output_hash += _md5File(self.requirements)
 
-        hashed_filename = os.path.join(build_path, f'{output_hash}.zip')
-        os.rename(output_filename, hashed_filename)
+        hashed_filename = output_hash + '.zip'
+        os.rename(output_filename, os.path.join(build_path, hashed_filename))
         return {
-            'output_filename': os.path.abspath(hashed_filename)
+            'output_filename': hashed_filename
         }
 
 def main():
