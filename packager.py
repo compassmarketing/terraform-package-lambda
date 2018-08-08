@@ -8,8 +8,6 @@
 import sys
 import os
 import json
-import hashlib
-import tempfile
 import shutil
 import subprocess
 import zipfile
@@ -18,14 +16,6 @@ from setuptools import find_packages
 
 def _find_root_modules(path):
     return [f for f in os.listdir(path) if re.match(r'^.*\.py$', f)]
-
-def _sha256File(path):
-    '''return package hash'''
-    sha256 = hashlib.sha256()
-    with open(path, 'rb') as output_filename:
-        for block in iter(lambda: output_filename.read(65536), b''):
-            sha256.update(block)
-    return sha256.hexdigest()
 
 class Packager:
     ''' main class '''
@@ -37,7 +27,12 @@ class Packager:
 
     def package(self):
         '''find and append packages to lambda zip file'''
-        build_path = tempfile.mkdtemp(suffix='lambda-packager')
+        build_path = os.path.abspath(self.build_dir)
+
+        if os.path.exists(build_path):
+            shutil.rmtree(build_path)
+        os.makedirs(build_path)
+
         output_filename = os.path.join(build_path, 'lambdas.zip')
 
         # install deps if specified
@@ -65,14 +60,14 @@ class Packager:
 
 
         # zip together for distribution
-        with zipfile.ZipFile(output_filename, 'w', compression=zipfile.ZIP_DEFLATED) as myzip:
+        with zipfile.ZipFile(output_filename, 'w') as myzip:
             for base, _, files in os.walk(build_path, followlinks=True):
                 for file in files:
                     if not file.endswith('.pyc') and file != 'lambdas.zip':
                         path = os.path.join(base, file)
                         with open(path, 'rb') as f:
                             zipinfo = zipfile.ZipInfo(path.replace(build_path + '/', ''))
-                            myzip.writestr(zipinfo, f.read())
+                            myzip.writestr(zipinfo, f.read(), compress_type=zipfile.ZIP_DEFLATED)
 
         return {
             'output_filename': os.path.abspath(output_filename)
