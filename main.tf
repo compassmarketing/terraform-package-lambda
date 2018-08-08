@@ -5,18 +5,19 @@ variable "requirements" {
   description = "Requirements txt file"
   default = ""
 }
-variable "build_dir" {
+variable "filename" {
   description = "Requirements txt file"
-  default = ".lambda_build"
+  default = "lambdas.zip"
 }
 
 data "external" "lambda_packager" {
   program = [ "${path.module}/packager.py" ]
   query = {
     path = "${var.path}"
+    filename = "${var.filename}"
     requirements = "${var.requirements}"
-    build_dir = "${var.build_dir}"
   }
 }
 
 output "output_filename" { value = "${data.external.lambda_packager.result["output_filename"]}" }
+output "output_base64sha256" { value = "${data.external.lambda_packager.result["output_base64sha256"]}" }

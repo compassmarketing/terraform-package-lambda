@@ -11,6 +11,7 @@ import json
 import hashlib
 import tempfile
 import shutil
+import base64
 import subprocess
 import zipfile
 import re
@@ -25,20 +26,19 @@ def _sha256File(path):
     with open(path, 'rb') as output_filename:
         for block in iter(lambda: output_filename.read(65536), b''):
             sha256.update(block)
-    return sha256.hexdigest()
+    return base64.b64encode(sha256.digest()).decode('utf-8')
 
 class Packager:
     ''' main class '''
 
-    def __init__(self, path, build_dir, requirements=None):
+    def __init__(self, path, filename, requirements=None):
         self.path = path
         self.requirements = requirements
-        self.build_dir = build_dir
+        self.filename = filename
 
     def package(self):
         '''find and append packages to lambda zip file'''
         build_path = tempfile.mkdtemp(suffix='lambda-packager')
-        output_filename = os.path.join(build_path, 'lambdas.zip')
 
         # install deps if specified
         if os.path.isfile(self.requirements):
@@ -65,7 +65,7 @@ class Packager:
 
 
         # zip together for distribution
-        with zipfile.ZipFile(output_filename, 'w') as myzip:
+        with zipfile.ZipFile(self.filename, 'w') as myzip:
             for base, _, files in os.walk(build_path, followlinks=True):
                 for file in files:
                     if not file.endswith('.pyc') and file != 'lambdas.zip':
@@ -75,7 +75,8 @@ class Packager:
                             myzip.writestr(zipinfo, f.read(), compress_type=zipfile.ZIP_DEFLATED)
 
         return {
-            'output_filename': os.path.abspath(output_filename)
+            'output_filename': self.filename,
+            'output_base64sha256': _sha256File(os.path.abspath(self.filename))
         }
 
 def main():
