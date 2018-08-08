@@ -30,14 +30,14 @@ def _md5File(path):
 class Packager:
     ''' main class '''
 
-    def __init__(self, path, requirements=None, build_dir=None):
+    def __init__(self, path, build_dir, requirements=None):
         self.path = path
         self.requirements = requirements
         self.build_dir = build_dir
 
     def package(self):
         '''find and append packages to lambda zip file'''
-        build_path = os.path.abspath(self.build_dir) if self.build_dir else tempfile.mkdtemp(suffix='lambda-packager')
+        build_path = os.path.abspath(self.build_dir)
         if not os.path.exists(build_path):
             os.makedirs(build_path)
 
@@ -82,10 +82,10 @@ class Packager:
 
             output_hash += _md5File(self.requirements)
 
-        output_hash = hashlib.sha256(output_hash.encode('utf-8')).digest()
+        hashed_filename = os.path.join(build_path, f'{output_hash}.zip')
+        os.rename(output_filename, hashed_filename)
         return {
-            'output_filename': os.path.abspath(output_filename),
-            'output_base64sha256': base64.b64encode(output_hash).decode('utf-8')
+            'output_filename': os.path.abspath(hashed_filename)
         }
 
 def main():
