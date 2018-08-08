@@ -8,9 +8,8 @@
 import sys
 import os
 import json
-import tempfile
 import hashlib
-import base64
+import glob
 import subprocess
 import zipfile
 import re
@@ -19,13 +18,13 @@ from setuptools import find_packages
 def _find_root_modules(path):
     return [f for f in os.listdir(path) if re.match(r'^.*\.py$', f)]
 
-def _md5File(path):
+def _sha256File(path):
     '''return package hash'''
-    md5 = hashlib.md5()
+    sha256 = hashlib.sha256()
     with open(path, 'rb') as output_filename:
         for block in iter(lambda: output_filename.read(65536), b''):
-            md5.update(block)
-    return md5.hexdigest()
+            sha256.update(block)
+    return sha256.hexdigest()
 
 class Packager:
     ''' main class '''
@@ -40,6 +39,9 @@ class Packager:
         build_path = os.path.abspath(self.build_dir)
         if not os.path.exists(build_path):
             os.makedirs(build_path)
+        else:
+            for f in glob.glob(os.path.join(build_path, '*.zip')):
+                os.remove(f)
 
         output_filename = os.path.join(build_path, 'lambdas.zip')
 
@@ -52,13 +54,13 @@ class Packager:
                 if os.path.isdir(module_relpath):
                     for base, _, files in os.walk(module_relpath, followlinks=True):
                         for file_name in files:
-                            if not file_name.endswith('.pyc'):
+                            if file_name.endswith('.py'):
                                 path = os.path.join(base, file_name)
                                 myzip.write(path, path.replace(self.path, ''))
                 else:
                     myzip.write(module_relpath, module)
 
-        output_hash = _md5File(output_filename)
+        output_hash = _sha256File(output_filename)
 
         # install deps if specified
         if os.path.isfile(self.requirements):
@@ -80,7 +82,8 @@ class Packager:
                         path = os.path.join(base, file)
                         myzip.write(path, path.replace(deps_path + '/', ''))
 
-            output_hash += _md5File(self.requirements)
+            dep_hash =  _sha256File(self.requirements)
+            output_hash = hashlib.sha256((output_hash + dep_hash).encode('utf-8')).hexdigest()
 
         hashed_filename = output_hash + '.zip'
         os.rename(output_filename, os.path.join(build_path, hashed_filename))
