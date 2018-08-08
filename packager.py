@@ -8,6 +8,8 @@
 import sys
 import os
 import json
+import hashlib
+import tempfile
 import shutil
 import subprocess
 import zipfile
@@ -16,6 +18,14 @@ from setuptools import find_packages
 
 def _find_root_modules(path):
     return [f for f in os.listdir(path) if re.match(r'^.*\.py$', f)]
+
+def _sha256File(path):
+    '''return package hash'''
+    sha256 = hashlib.sha256()
+    with open(path, 'rb') as output_filename:
+        for block in iter(lambda: output_filename.read(65536), b''):
+            sha256.update(block)
+    return sha256.hexdigest()
 
 class Packager:
     ''' main class '''
@@ -27,12 +37,7 @@ class Packager:
 
     def package(self):
         '''find and append packages to lambda zip file'''
-        build_path = os.path.abspath(self.build_dir)
-
-        if os.path.exists(build_path):
-            shutil.rmtree(build_path)
-        os.makedirs(build_path)
-
+        build_path = tempfile.mkdtemp(suffix='lambda-packager')
         output_filename = os.path.join(build_path, 'lambdas.zip')
 
         # install deps if specified
