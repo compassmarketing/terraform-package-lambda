@@ -20,22 +20,20 @@ from setuptools import find_packages
 def _find_root_modules(path):
     return [f for f in os.listdir(path) if re.match(r'^.*\.py$', f)]
 
-def _add_sha_256(sha256, path):
+def sha_256_file(path):
     '''return package hash'''
+    sha256 = hashlib.sha256()
     with open(path, 'rb') as output_filename:
         for block in iter(lambda: output_filename.read(65536), b''):
             sha256.update(block)
-    return sha256
+    return sha256.digest()
 
-def _zip_directory(filename, src_path, mode='w'):
+def zip_directory(filename, src_path, mode='w'):
     with zipfile.ZipFile(filename, mode) as myzip:
         for base, _, files in os.walk(src_path, followlinks=True):
             for file in files:
-                if not file.endswith('.pyc'):
-                    path = os.path.join(base, file)
-                    with open(path, 'rb') as f:
-                        zipinfo = zipfile.ZipInfo(path.replace(src_path + '/', ''))
-                        myzip.writestr(zipinfo, f.read(), compress_type=zipfile.ZIP_DEFLATED)
+                path = os.path.join(base, file)
+                myzip.write(path, path.replace(src_path + '/', ''), compress_type=zipfile.ZIP_DEFLATED)
 
 class Packager:
     ''' main class '''
@@ -60,16 +58,13 @@ class Packager:
             elif os.path.isfile(src):
                 shutil.copy(src, dst)
 
-        # zip together for distribution
-        _zip_directory(self.filename, build_path)
+        hashvalues = []
+        for root, _, files in os.walk(self.path, topdown=True, followlinks=True):
+            hashvalues.extend(
+                [sha_256_file(os.path.join(root, f)) for f in files if not f.endswith('.pyc')]
+            )
 
-        # Create sha
-        sha256 = hashlib.sha256()
-        _add_sha_256(sha256, self.filename)
-
-        # install deps if specified
         if os.path.isfile(self.requirements):
-            deps_path = tempfile.mkdtemp(suffix='lambda-packager-deps')
             fnull = open(os.devnull, 'w')
             subprocess.check_call([
                 'pip',
@@ -77,12 +72,16 @@ class Packager:
                 '-r',
                 self.requirements,
                 '-t',
-                deps_path
+                build_path
             ], stdout=fnull)
 
-            _zip_directory(self.filename, deps_path, 'a')
-            _add_sha_256(sha256, self.requirements)
+            hashvalues.append(sha_256_file(self.requirements))
 
+        zip_directory(self.filename, build_path)
+
+        sha256 = hashlib.sha256()
+        for hashval in sorted(hashvalues):
+            sha256.update(hashval)
 
         return {
             'output_filename': self.filename,
