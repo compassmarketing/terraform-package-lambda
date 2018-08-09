@@ -11,7 +11,6 @@ import json
 import hashlib
 import tempfile
 import shutil
-import base64
 import subprocess
 import zipfile
 import re
@@ -38,10 +37,10 @@ def zip_directory(filename, src_path, mode='w'):
 class Packager:
     ''' main class '''
 
-    def __init__(self, path, filename, requirements=None):
+    def __init__(self, path, build_dir, requirements=None):
         self.path = path
         self.requirements = requirements
-        self.filename = filename
+        self.build_dir = build_dir
 
     def package(self):
         '''find and append packages to lambda zip file'''
@@ -77,15 +76,16 @@ class Packager:
 
             hashvalues.append(sha_256_file(self.requirements))
 
-        zip_directory(self.filename, build_path)
 
         sha256 = hashlib.sha256()
         for hashval in sorted(hashvalues):
             sha256.update(hashval)
 
+        output_filename = os.path.join(self.build_dir, f'{sha256.hexdigest()}.zip')
+        zip_directory(output_filename, build_path)
+
         return {
-            'output_filename': self.filename,
-            'output_base64sha256': base64.b64encode(sha256.digest()).decode('utf-8')
+            'output_filename': output_filename
         }
 
 def main():
