@@ -58,7 +58,7 @@ class Packager:
                 shutil.copy(src, dst)
 
         hashvalues = []
-        for root, _, files in os.walk(self.path, topdown=True, followlinks=True):
+        for root, _, files in os.walk(build_path, topdown=True, followlinks=True):
             hashvalues.extend(
                 [sha_256_file(os.path.join(root, f)) for f in files if not f.endswith('.pyc')]
             )
